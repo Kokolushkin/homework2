@@ -1,8 +1,8 @@
 import "babel-polyfill";
 import Chart from "chart.js";
 
-const currencyURL = "www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";
-// const meteoURL = "/xml.meteoservice.ru/export/gismeteo/point/140.xml";
+//const currencyURL = "www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";
+ const meteoURL = "/xml.meteoservice.ru/export/gismeteo/point/140.xml";
 
 async function loadCurrency() {
   const response = await fetch(currencyURL);
