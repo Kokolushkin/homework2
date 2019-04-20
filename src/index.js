@@ -1,60 +1,85 @@
 import "babel-polyfill";
 import Chart from "chart.js";
 
-//const currencyURL = "www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml";
  const meteoURL = "/xml.meteoservice.ru/export/gismeteo/point/140.xml";
 
-async function loadCurrency() {
-  const response = await fetch(currencyURL);
-  const xmlTest = await response.text();
-  const parser = new DOMParser();
-  const currencyData = parser.parseFromString(xmlTest, "text/xml");
-  // <Cube currency="USD" rate="1.1321" />
-  const rates = currencyData.querySelectorAll("Cube[currency][rate]");
-  const result = Object.create(null);
-  for (let i = 0; i < rates.length; i++) {
-    const rateTag = rates.item(i);
-    const rate = rateTag.getAttribute("rate");
-    const currency = rateTag.getAttribute("currency");
-    result[currency] = rate;
+class Weather{
+  constructor(hour, temperature, heat){
+    this.hour = hour + ":00";
+    this.temperature = temperature;
+    this.heat = heat;
   }
-  result["EUR"] = 1;
-  // result["RANDOM"] = 1 + Math.random();
-  return result;
 }
 
-function normalizeDataByCurrency(data, currency) {
-  const result = Object.create(null);
-  const value = data[currency];
-  for (const key of Object.keys(data)) {
-    result[key] = value / data[key];
+async function loadMeteo() {
+
+  const response = await fetch(meteoURL);
+  const xmlTest = await response.text();
+  const parser = new DOMParser();
+  const meteoData = parser.parseFromString(xmlTest, "text/xml");
+  const rateHour = meteoData.querySelectorAll("FORECAST[hour]");
+  const rateTemp = meteoData.getElementsByTagName("TEMPERATURE");
+  const rateHeat = meteoData.getElementsByTagName("HEAT");
+  const result = [];
+  for (let i = 0; i < rateHour.length; i++) {
+    const rateHourTag = rateHour.item(i);
+    const rateTempTag = rateTemp.item(i);
+    const rateHeatTag = rateHeat.item(i);
+    const hour = rateHourTag.getAttribute("hour");
+    const temper = rateTempTag.getAttribute("max");
+    const heat = rateHeatTag.getAttribute("max");
+    const data = new Weather(hour, temper, heat);
+    result.push(data);
   }
   return result;
+  
 }
 
 const buttonBuild = document.getElementById("btn");
 const canvasCtx = document.getElementById("out").getContext("2d");
 buttonBuild.addEventListener("click", async function() {
-  const currencyData = await loadCurrency();
-  const normalData = normalizeDataByCurrency(currencyData, "RUB");
-  const keys = Object.keys(normalData).sort((k1, k2) =>
-    compare(normalData[k1], normalData[k2])
-  );
-  const plotData = keys.map(key => normalData[key]);
+  const meteoData = await loadMeteo();
+  const hours = meteoData.map(weather => weather.hour);
+  const temperatures = meteoData.map(weather => weather.temperature);
+  const heats = meteoData.map(weather => weather.heat);
 
   const chartConfig = {
     type: "line",
 
     data: {
-      labels: keys,
+      labels: hours,
       datasets: [
         {
-          label: "Стоимость валюты в рублях",
-          backgroundColor: "rgb(255, 20, 20)",
+          label: "Температура",
+          backgroundColor: "rgba(255, 20, 20, 0.5)",
           borderColor: "rgb(180, 0, 0)",
-          data: plotData
-        }
+          data: temperatures
+        },
+
+        {
+          label: "Температура по ощущениям",
+          backgroundColor: "rgba(0, 255, 0, 0.5)",
+          borderColor: "rgb(0, 100, 0)",
+          data: heats
+        },
       ]
+    },
+    options: {
+      scales: {
+        yAxes: [{ 
+          scaleLabel: {
+            display: true,
+            labelString: "Температура °C"
+          }
+        }],
+
+        xAxes: [{ 
+          scaleLabel: {
+            display: true,
+            labelString: "Время"
+          }
+        }]
+      }
     }
   };
 
@@ -69,9 +94,3 @@ buttonBuild.addEventListener("click", async function() {
     window.chart = new Chart(canvasCtx, chartConfig);
   }
 });
-
-function compare(a, b) {
-  if (a > b) return 1;
-  if (a < b) return -1;
-  return 0;
-}
